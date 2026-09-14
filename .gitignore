@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+.vercel
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# Output of the removed convert-pokertrainer script
+data/converted/
