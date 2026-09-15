@@ -1,16 +1,20 @@
 'use client'
 
-import { HAND_GRID, RANKS, type Rank } from '@/lib/hands'
-import type { FlopAction, FlopNode } from '@/lib/postflop'
+import { HAND_GRID } from '@/lib/hands'
+import type { ActionKind } from '@/lib/fullHands'
 
 interface Props {
-  node: FlopNode
+  /** Action kinds in option order, for colours. */
+  kinds: ActionKind[]
+  /** Option labels in the same order. */
+  labels: string[]
+  /** Average strategy per hand class in percent, in option order. Hands not in range are absent. */
+  cells: Record<string, number[]>
   /** Hand label (e.g. "K7o") to outline. */
   highlight?: string
-  labels: string[]
 }
 
-const ACTION_COLORS: Record<FlopAction['a'], string> = {
+const ACTION_COLORS: Record<ActionKind, string> = {
   X: 'var(--check)',
   C: 'var(--call)',
   B: 'var(--raise)',
@@ -19,75 +23,46 @@ const ACTION_COLORS: Record<FlopAction['a'], string> = {
   F: 'var(--fold)',
 }
 
-interface CellData {
-  combos: number
-  avg: number[]
-}
-
-/** Average the per-combo strategy of a node into the 169 hand classes. */
-function aggregate(node: FlopNode): Map<string, CellData> {
-  const out = new Map<string, CellData>()
-  const rankIdx = (r: string) => RANKS.indexOf(r as Rank)
-  for (const [combo, probs] of Object.entries(node.s)) {
-    const r1 = combo[0]
-    const r2 = combo[2]
-    const suited = combo[1] === combo[3]
-    let label: string
-    if (r1 === r2) label = `${r1}${r2}`
-    else {
-      const [high, low] = rankIdx(r1) <= rankIdx(r2) ? [r1, r2] : [r2, r1]
-      label = `${high}${low}${suited ? 's' : 'o'}`
-    }
-    const cell = out.get(label) ?? { combos: 0, avg: probs.map(() => 0) }
-    cell.combos++
-    probs.forEach((p, i) => (cell.avg[i] += p))
-    out.set(label, cell)
-  }
-  for (const cell of out.values()) cell.avg = cell.avg.map((sum) => sum / cell.combos)
-  return out
-}
-
-function background(avg: number[], actions: FlopAction[]): string {
+function background(avg: number[], kinds: ActionKind[]): string {
   const stops: string[] = []
   let acc = 0
-  actions.forEach((action, i) => {
+  kinds.forEach((kind, i) => {
     const from = acc
     acc += avg[i]
-    if (avg[i] > 0.5) stops.push(`${ACTION_COLORS[action.a]} ${from}% ${acc}%`)
+    if (avg[i] > 0.5) stops.push(`${ACTION_COLORS[kind]} ${from}% ${acc}%`)
   })
   if (stops.length === 1) return stops[0].split(' ')[0]
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
-export function StrategyGrid({ node, highlight, labels }: Props) {
-  const cells = aggregate(node)
-  const totals = node.actions.map(() => 0)
+export function StrategyGrid({ kinds, labels, cells, highlight }: Props) {
+  const totals = kinds.map(() => 0)
   let count = 0
-  for (const cell of cells.values()) {
-    count += cell.combos
-    cell.avg.forEach((p, i) => (totals[i] += p * cell.combos))
+  for (const avg of Object.values(cells)) {
+    count++
+    avg.forEach((p, i) => (totals[i] += p))
   }
   return (
     <>
       <div className="grid" role="grid" aria-label="Flop strategy by hand">
         {HAND_GRID.flat().map((hand) => {
-          const cell = cells.get(hand.label)
+          const avg = cells[hand.label]
           const classes = ['cell']
           if (hand.kind === 'pair') classes.push('cell--pair')
-          if (!cell) classes.push('cell--absent')
+          if (!avg) classes.push('cell--absent')
           if (hand.label === highlight) classes.push('cell--highlight')
-          const title = cell ? labels.map((label, i) => `${label} ${Math.round(cell.avg[i])}%`).join(', ') : 'Not in range'
+          const title = avg ? labels.map((label, i) => `${label} ${Math.round(avg[i])}%`).join(', ') : 'Not in range'
           return (
-            <div key={hand.label} role="gridcell" className={classes.join(' ')} style={cell ? { background: background(cell.avg, node.actions) } : undefined} title={title}>
+            <div key={hand.label} role="gridcell" className={classes.join(' ')} style={avg ? { background: background(avg, kinds) } : undefined} title={title}>
               {hand.label}
             </div>
           )
         })}
       </div>
       <div className="legend">
-        {node.actions.map((action, i) => (
+        {kinds.map((kind, i) => (
           <div key={i} className="legend__item">
-            <span className="legend__swatch" style={{ background: ACTION_COLORS[action.a] }} />
+            <span className="legend__swatch" style={{ background: ACTION_COLORS[kind] }} />
             <strong>{labels[i]}</strong>
             <span className="legend__pct">{count ? (totals[i] / count).toFixed(1) : '0.0'}%</span>
           </div>

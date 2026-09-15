@@ -51,9 +51,9 @@ export interface Decision {
 
 const RERAISE_SCENARIOS: Scenario[] = ['vs-3bet', 'vs-4bet', 'vs-5bet']
 
-export function startHand(setup: TrainerSetup, rng: Rng = Math.random, hero?: Position): HandState {
+export function startHand(setup: TrainerSetup, rng: Rng = Math.random, hero?: Position, dealt?: HoleCards[]): HandState {
   const order = positionsFor(setup.players)
-  const cards = dealTable(order.length, rng)
+  const cards = dealt ?? dealTable(order.length, rng)
   const seats: Seat[] = order.map((position, i) => ({
     position,
     cards: cards[i],

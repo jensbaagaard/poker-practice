@@ -772,3 +772,23 @@ kbd {
 .actions--wrap .action-btn {
   min-width: 120px;
 }
+
+.showdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.showdown__label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hole-cards--small {
+  gap: 6px;
+  margin: 0;
+}

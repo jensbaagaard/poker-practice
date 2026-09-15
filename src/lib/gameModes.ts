@@ -1,4 +1,4 @@
-export const GAME_MODES = ['preflop-guess'] as const
+export const GAME_MODES = ['full-hands', 'preflop'] as const
 export type GameMode = (typeof GAME_MODES)[number]
 
 export interface GameModeInfo {
@@ -7,13 +7,18 @@ export interface GameModeInfo {
 }
 
 export const GAME_MODE_INFO: Record<GameMode, GameModeInfo> = {
-  'preflop-guess': {
-    label: 'Play a hand',
-    description: 'Play a hand against opponents who follow the charts. Preflop uses the range charts; heads-up single-raised pots continue onto a solved flop.',
+  'full-hands': {
+    label: 'Full hands',
+    description:
+      'Play a hand from the first preflop decision to the river against opponents who follow the charts and solver. A wrong move is corrected and the hand continues along the right line.',
+  },
+  preflop: {
+    label: 'Preflop',
+    description: 'Play preflop against opponents who follow the charts; when the action reaches you, pick the move the chart plays.',
   },
 }
 
-export const DEFAULT_GAME_MODE: GameMode = 'preflop-guess'
+export const DEFAULT_GAME_MODE: GameMode = 'full-hands'
 
 export function isGameMode(value: string | null | undefined): value is GameMode {
   return (GAME_MODES as readonly string[]).includes(value ?? '')

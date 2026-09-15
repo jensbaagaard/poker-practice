@@ -18,15 +18,16 @@ live in the URL so any view can be shared as a link.
 - Table diagram showing seats, blinds, dealer button and bets
 - Two colour themes
 - **Your ranges**: paste your own charts as JSON, stored in your browser
-- **Play** (`/play`): play a hand against opponents who follow the charts. Every
-  seat is dealt cards, opponents act in turn (one second each) from the selected
-  preflop charts, and whenever the action reaches you, you choose raise, call or
-  fold. Heads-up single-raised pots continue onto a solved flop: the board is drawn
-  from a weighted 25-flop subset and both players act from a TexasSolver strategy
-  (check, bet 33%, raise, all-in, call, fold). Each decision is graded against the
-  chart or solver, and the full range or flop strategy is shown afterwards. Only the
-  previous raiser has a chart for facing a re-raise, so everyone else folds to a
-  3-bet. Keys `R`, `C`, `F` (and `X`, `B`, `A` on the flop) answer; `Enter` continues.
+- **Play** (`/play`) has two game modes:
+  - **Full hands**: play a hand from the first preflop decision to the river. Hands
+    are pre-generated: opponents follow the preflop charts and a solver line, and
+    whenever the action reaches you, you pick a move. A wrong move is graded, the
+    right one is shown, and the hand continues along the solver's line. Single-raised
+    and 3-bet pots, cash 100bb PTO, 6-max. Keys `R`, `C`, `F` preflop and `X`, `B`,
+    `R`, `A`, `C`, `F` postflop; `Enter` continues.
+  - **Preflop**: every seat is dealt cards, opponents act in turn (one second each)
+    from the selected charts, and you choose raise, call or fold whenever the action
+    reaches you. Works for every chart set and table size.
 
 ## Getting started
 
@@ -114,27 +115,39 @@ size, and that every set covers opening and facing a raise.
 MIT. The range data in `data/openSourcePokerData/` is free to use; its layout
 and the scenario keys are documented in `data/openSourcePokerData/README.md`.
 
-## Postflop data
+## Full-hand data
 
-Flop strategies live in `public/postflop/<spotId>/<board>.json` with an index in
-`public/postflop/index.json`. They are generated offline with
+Full hands are scripted lines generated offline with
 [TexasSolver](https://github.com/bupticybee/TexasSolver) (AGPL, run as a separate
-program; its output is data, the app never links its code):
+program; its output is data, the app never links its code). Three steps:
 
 ```bash
 node scripts/flop-subset.mjs 25 > data/postflop/flops-25.json   # weighted flop subset (deterministic, ~90s)
-TEXASSOLVER_BIN=/path/to/console_solver node scripts/solve-postflop.mjs [--spots srp-BTN-BB] [--flops 5] [--iterations 120]
+TEXASSOLVER_BIN=/path/to/console_solver node scripts/solve-postflop.mjs [--kind srp|3bp] [--spots srp-BTN-BB] [--flops 5] [--iterations 120]
+TEXASSOLVER_BIN=/path/to/console_solver node scripts/generate-hands.mjs [--per-board 6] [--kind srp|3bp] [--spots srp-BTN-BB]
 ```
 
-`scripts/postflop-spots.mjs` derives the spots from the Cash 100bb PTO charts (every
-opener/caller pair with a calling range) and defines the bet-size tree: a single 33%
-flop bet, 50% raises and all-in, then 50% bets on the turn and river. One flop takes
-one to two minutes on an Apple Silicon laptop and converges to about 2–3% of the pot;
-the script resumes where it stopped and rewrites the index after every solve.
+1. `scripts/postflop-spots.mjs` derives the heads-up spots from the Cash 100bb PTO
+   charts: every opener/caller pair (single-raised pots, 25 boards each) and every
+   opener/3-bettor pair where the opener calls (3-bet pots, 10 boards each). It also
+   defines the bet-size tree: a single 33% flop bet, 50% raises and all-in, then 50%
+   bets on the turn and river.
+2. `scripts/solve-postflop.mjs` solves the full flop game for each spot and board and
+   writes the flop nodes to `data/postflop/flops/` (one to two minutes per board,
+   about 2–3% of the pot; 3-bet pots are faster). Resumable.
+3. `scripts/generate-hands.mjs` samples a hero and villain hand for each solved board,
+   walks the flop along the solver's line (hero: most frequent action, villain:
+   sampled), re-solves turn and river as a subgame from the reach ranges (a few
+   seconds), walks those streets and evaluates the showdown. Only the nodes on that
+   line are kept, with the hero's frequencies and a 169-hand summary at each of the
+   hero's decisions, in `public/full-hands/<spot>/<board>-<n>.json` plus an index.
+   About five seconds per hand; resumable.
+
+At play time the preflop is dealt so the charts lead to the scripted spot: the two
+players get the script's cards and everyone else gets a hand their chart folds.
 
 Building the TexasSolver console on macOS (Apple clang has no OpenMP; the bundled
 pybind11 does not work with Python 3.12+):
-
 ```bash
 brew install cmake libomp
 git clone --branch console https://github.com/bupticybee/TexasSolver && cd TexasSolver

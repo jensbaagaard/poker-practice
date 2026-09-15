@@ -9,6 +9,8 @@ import { loadRangeSet, rangeSetFor, rangeSetLabel } from '@/lib/rangeSets'
 import { loadTheme } from '@/lib/theme'
 import { fromSearchParams, normalize, toSetupSearchParams, DEFAULT_STATE } from '@/lib/viewerState'
 import { isPosition, positionsFor } from '@/lib/positions'
+import { loadHandIndex, type HandIndex } from '@/lib/fullHands'
+import { FullHandTrainer } from './FullHandTrainer'
 import { HandTrainer } from './HandTrainer'
 import { Segmented } from './Segmented'
 import { TopNav } from './TopNav'
@@ -18,6 +20,8 @@ interface LoadedSet {
   id: string
   entries: RangeEntry[]
 }
+
+const FULL_HANDS_SETUP: TrainerSetup = { format: 'cash', stack: 100, rangeType: 'pto', openSize: 2.5, players: 6 }
 
 function pickSetup(params: URLSearchParams, seat?: string | null): TrainerSetup {
   const { format, stack, rangeType, openSize, players } = fromSearchParams(params)
@@ -34,6 +38,7 @@ export function PlayPage() {
   const [setup, setSetup] = useState<TrainerSetup>(() => pickSetup(new URLSearchParams(searchParams.toString())))
   const [loaded, setLoaded] = useState<LoadedSet | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [handIndex, setHandIndex] = useState<HandIndex | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = loadTheme()
@@ -52,8 +57,22 @@ export function PlayPage() {
     if (window.location.search !== next) window.history.replaceState(null, '', next)
   }, [mode, setupParams])
 
-  const set = rangeSetFor(setup)
+  // Full hands are generated from the Cash 100bb PTO charts, so that set is fixed in that mode.
+  const fullHands = mode === 'full-hands'
+  const effectiveSetup: TrainerSetup = fullHands ? { ...FULL_HANDS_SETUP, seat: setup.seat } : setup
+  const set = rangeSetFor(effectiveSetup)
   const setId = set?.id
+
+  useEffect(() => {
+    if (!fullHands || handIndex) return
+    let cancelled = false
+    loadHandIndex().then((idx) => {
+      if (!cancelled) setHandIndex(idx)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fullHands, handIndex])
 
   useEffect(() => {
     if (!setId) return
@@ -103,6 +122,14 @@ export function PlayPage() {
         <section className="card">
           <div className="empty">Could not load the built-in charts. {loadError}</div>
         </section>
+      ) : entries && fullHands ? (
+        handIndex ? (
+          <FullHandTrainer key={`${setId}-${setup.seat ?? 'any'}`} entries={entries} setup={effectiveSetup} index={handIndex} />
+        ) : (
+          <section className="card">
+            <div className="empty">Loading hands…</div>
+          </section>
+        )
       ) : entries ? (
         <HandTrainer key={setId} entries={entries} setup={setup} />
       ) : (
@@ -111,7 +138,7 @@ export function PlayPage() {
         </section>
       )}
 
-      <TrainerSetupPanel setup={setup} onChange={updateSetup} />
+      <TrainerSetupPanel setup={effectiveSetup} onChange={updateSetup} seatOnly={fullHands} />
 
       <footer className="footer">
         {GAME_MODE_INFO[mode].description}

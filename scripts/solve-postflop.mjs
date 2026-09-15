@@ -4,11 +4,12 @@
  * For every spot (who opened, who called/3-bet, pot and stack going to the flop)
  * and every flop in the subset, the script writes a TexasSolver input file, runs
  * the console solver, and compacts the flop nodes of the result into
- * public/postflop/<spotId>/<board>.json. Existing files are skipped so the job
+ * data/postflop/flops/<spotId>/<board>.json. These are inputs for
+ * scripts/generate-hands.mjs, not served. Existing files are skipped so the job
  * can be resumed.
  *
  * Requires the TexasSolver console binary (AGPL, run as a separate program):
- *   TEXASSOLVER_BIN=/path/to/console_solver node scripts/solve-postflop.mjs [--spots srp-BTN-BB,...] [--flops 5] [--iterations 120]
+ *   TEXASSOLVER_BIN=/path/to/console_solver node scripts/solve-postflop.mjs [--spots srp-BTN-BB,...] [--kind srp|3bp] [--flops 5] [--iterations 120]
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -21,7 +22,7 @@ import { POSTFLOP_SPOTS, TREE } from './postflop-spots.mjs'
 const SCALE = 10
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const outRoot = path.join(root, 'public', 'postflop')
+const outRoot = path.join(root, 'data', 'postflop', 'flops')
 const workDir = path.join(os.tmpdir(), 'open-range-viewer-solves')
 const bin = process.env.TEXASSOLVER_BIN
 if (!bin || !existsSync(bin)) {
@@ -36,12 +37,13 @@ const opt = (name, fallback) => {
 }
 const spotFilter = opt('spots', '')?.split(',').filter(Boolean)
 const flopLimit = Number(opt('flops', Infinity))
+const kindFilter = opt('kind', '')
 const iterations = Number(opt('iterations', 120))
 const threads = Number(opt('threads', Math.min(12, Math.max(2, os.cpus().length - 2))))
 
 const flopsAll = JSON.parse(readFileSync(path.join(root, 'data', 'postflop', 'flops-25.json'), 'utf8'))
 const flops = flopsAll.slice(0, flopLimit)
-const spots = POSTFLOP_SPOTS.filter((s) => !spotFilter.length || spotFilter.includes(s.id))
+const spots = POSTFLOP_SPOTS.filter((s) => (!spotFilter.length || spotFilter.includes(s.id)) && (!kindFilter || s.kind === kindFilter))
 
 mkdirSync(workDir, { recursive: true })
 
@@ -98,7 +100,7 @@ function compactNode(node, spot) {
   return { p: node.player === 0 ? 'ip' : 'oop', actions, s: strategy, c: children }
 }
 
-/** Index of everything solved so far, read by the app to know which spots and boards exist. */
+/** Index of everything solved so far, read by generate-hands.mjs. */
 function writeManifest() {
   const manifest = { spots: {} }
   for (const spot of POSTFLOP_SPOTS) {
@@ -134,9 +136,10 @@ function solveOnce(inputPath, resultPath, spot, flop, outFile) {
 }
 
 let done = 0
-const total = spots.length * flops.length
+const total = spots.reduce((n, s) => n + Math.min(s.flops, flops.length), 0)
 for (const flop of flops) {
   for (const spot of spots) {
+    if (flops.indexOf(flop) >= spot.flops) continue
     const spotDir = path.join(outRoot, spot.id)
     mkdirSync(spotDir, { recursive: true })
     const boardId = flop.board.join('')
