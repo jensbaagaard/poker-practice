@@ -1,4 +1,4 @@
-import type { PlayerCount } from './positions'
+import type { PlayerCount, Position } from './positions'
 import type { Action, ActionWeights } from './range'
 import type { GameSetup } from './scenarios'
 
@@ -6,6 +6,8 @@ export type Grade = 'correct' | 'partial' | 'wrong'
 
 export interface TrainerSetup extends GameSetup {
   players: PlayerCount
+  /** Fixed seat for the player; a random seat each hand when unset. */
+  seat?: Position
 }
 
 /** The action the chart plays most often. Ties go to the more aggressive action. */
@@ -24,6 +26,18 @@ export function bestAction(weights: ActionWeights): Action {
 export function grade(weights: ActionWeights, guess: Action): Grade {
   if (guess === bestAction(weights)) return 'correct'
   return weights[guess] > 0 ? 'partial' : 'wrong'
+}
+
+/** Index of the most frequent option. Ties go to the earliest option, which the charts list as the most aggressive. */
+export function bestIndex(probs: number[]): number {
+  let best = 0
+  for (let i = 1; i < probs.length; i++) if (probs[i] > probs[best]) best = i
+  return best
+}
+
+export function gradeIndex(probs: number[], guess: number): Grade {
+  if (guess === bestIndex(probs)) return 'correct'
+  return probs[guess] > 0 ? 'partial' : 'wrong'
 }
 
 export interface Score {

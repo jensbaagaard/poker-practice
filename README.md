@@ -18,13 +18,15 @@ live in the URL so any view can be shared as a link.
 - Table diagram showing seats, blinds, dealer button and bets
 - Two colour themes
 - **Your ranges**: paste your own charts as JSON, stored in your browser
-- **Play** (`/play`): game modes for drilling the charts. The first mode plays a
-  full preflop hand: every seat is dealt cards, opponents act in turn (one second each) from the
-  selected charts (sampling mixed frequencies), and whenever the action reaches
-  you, you choose raise, call or fold. Each decision is graded against the chart
-  and the full range is shown afterwards. Multiway spots are simplified: only the
-  previous raiser has a chart for facing a re-raise, so everyone else folds.
-  Keys `R`, `C`, `F` answer; `Enter` continues.
+- **Play** (`/play`): play a hand against opponents who follow the charts. Every
+  seat is dealt cards, opponents act in turn (one second each) from the selected
+  preflop charts, and whenever the action reaches you, you choose raise, call or
+  fold. Heads-up single-raised pots continue onto a solved flop: the board is drawn
+  from a weighted 25-flop subset and both players act from a TexasSolver strategy
+  (check, bet 33%, raise, all-in, call, fold). Each decision is graded against the
+  chart or solver, and the full range or flop strategy is shown afterwards. Only the
+  previous raiser has a chart for facing a re-raise, so everyone else folds to a
+  3-bet. Keys `R`, `C`, `F` (and `X`, `B`, `A` on the flop) answer; `Enter` continues.
 
 ## Getting started
 
@@ -111,3 +113,37 @@ size, and that every set covers opening and facing a raise.
 
 MIT. The range data in `data/openSourcePokerData/` is free to use; its layout
 and the scenario keys are documented in `data/openSourcePokerData/README.md`.
+
+## Postflop data
+
+Flop strategies live in `public/postflop/<spotId>/<board>.json` with an index in
+`public/postflop/index.json`. They are generated offline with
+[TexasSolver](https://github.com/bupticybee/TexasSolver) (AGPL, run as a separate
+program; its output is data, the app never links its code):
+
+```bash
+node scripts/flop-subset.mjs 25 > data/postflop/flops-25.json   # weighted flop subset (deterministic, ~90s)
+TEXASSOLVER_BIN=/path/to/console_solver node scripts/solve-postflop.mjs [--spots srp-BTN-BB] [--flops 5] [--iterations 120]
+```
+
+`scripts/postflop-spots.mjs` derives the spots from the Cash 100bb PTO charts (every
+opener/caller pair with a calling range) and defines the bet-size tree: a single 33%
+flop bet, 50% raises and all-in, then 50% bets on the turn and river. One flop takes
+one to two minutes on an Apple Silicon laptop and converges to about 2–3% of the pot;
+the script resumes where it stopped and rewrites the index after every solve.
+
+Building the TexasSolver console on macOS (Apple clang has no OpenMP; the bundled
+pybind11 does not work with Python 3.12+):
+
+```bash
+brew install cmake libomp
+git clone --branch console https://github.com/bupticybee/TexasSolver && cd TexasSolver
+sed -i '' 's|^add_subdirectory(ext/pybind11)|#&|' CMakeLists.txt
+sed -i '' 's|^target_link_libraries(console_solver TexasSolver)|target_link_libraries(console_solver TexasSolver ${OpenMP_omp_LIBRARY})|' CMakeLists.txt
+OMP=$(brew --prefix libomp); mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I$OMP/include" -DOpenMP_CXX_LIB_NAMES=omp \
+  -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I$OMP/include" -DOpenMP_C_LIB_NAMES=omp \
+  -DOpenMP_omp_LIBRARY="$OMP/lib/libomp.dylib"
+make -j8 console_solver && cp console_solver ..    # run it from the repo root: it reads ./resources
+```

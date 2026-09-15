@@ -8,8 +8,8 @@ export interface GameModeInfo {
 
 export const GAME_MODE_INFO: Record<GameMode, GameModeInfo> = {
   'preflop-guess': {
-    label: 'Preflop move',
-    description: 'A full preflop hand. Opponents play their cards from the charts; when the action reaches you, pick the move the chart plays.',
+    label: 'Play a hand',
+    description: 'Play a hand against opponents who follow the charts. Preflop uses the range charts; heads-up single-raised pots continue onto a solved flop.',
   },
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { PLAYER_COUNTS } from '@/lib/positions'
+import { PLAYER_COUNTS, POSITION_LABELS, positionsFor, type Position } from '@/lib/positions'
 import type { TrainerSetup } from '@/lib/preflopGuess'
 import {
   FORMAT_LABELS,
@@ -53,6 +53,17 @@ export function TrainerSetupPanel({ setup, onChange }: Props) {
                 options={PLAYER_COUNTS.map((p) => ({ value: p, label: String(p) }))}
                 value={setup.players}
                 onChange={(players) => onChange({ players: players as TrainerSetup['players'] })}
+              />
+            </div>
+          </div>
+          <div className="subcard">
+            <div className="field">
+              <div className="field__label">Your seat</div>
+              <Segmented<Position | 'random'>
+                ariaLabel="Your seat"
+                options={[{ value: 'random', label: 'Random' }, ...positionsFor(setup.players).map((p) => ({ value: p, label: POSITION_LABELS[p] }))]}
+                value={setup.seat ?? 'random'}
+                onChange={(seat) => onChange({ seat: seat === 'random' ? undefined : seat })}
               />
             </div>
           </div>

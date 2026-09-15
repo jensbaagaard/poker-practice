@@ -11,6 +11,8 @@ interface Props {
   folded?: ReadonlySet<Position>
   /** Short text under each seat, e.g. the seat's last action or revealed hand. */
   labels?: Partial<Record<Position, string>>
+  /** Pot size shown in the middle of the table. */
+  pot?: number
 }
 
 const W = 480
@@ -30,7 +32,7 @@ function formatBet(amount: number): string {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(/\.0$/, '')
 }
 
-export function TableDiagram({ players, hero, villain, bets, acting, folded, labels }: Props) {
+export function TableDiagram({ players, hero, villain, bets, acting, folded, labels, pot }: Props) {
   const order = positionsFor(players)
   const heroIdx = order.indexOf(hero)
   const seats = order.map((position, i) => {
@@ -43,6 +45,11 @@ export function TableDiagram({ players, hero, villain, bets, acting, folded, lab
     <div className="table-wrap">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Table with ${players} players, hero ${hero}`}>
         <ellipse cx={CX} cy={CY} rx={RX} ry={RY} fill="none" stroke="var(--accent)" strokeWidth={1.5} />
+        {pot !== undefined && (
+          <text x={CX} y={CY + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--muted)">
+            Pot {formatBet(pot)}bb
+          </text>
+        )}
         {seats.map(({ position, angle, x, y }) => {
           const isHero = position === hero
           const isVillain = position === villain

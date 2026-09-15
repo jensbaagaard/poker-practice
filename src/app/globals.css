@@ -15,11 +15,15 @@
   --call: #4fd06a;
   --ok: #4fd06a;
   --danger: #ef6f6f;
+  --check: #6f9fe0;
+  --raise-strong: #b83a3a;
 }
 
 :root[data-theme='cool'] {
   --raise: #a6c8f7;
   --call: #f7f2a4;
+  --check: #c9b6f2;
+  --raise-strong: #5f8fd6;
 }
 
 * {
@@ -697,4 +701,74 @@ kbd {
   outline: 3px solid var(--accent);
   outline-offset: -1px;
   z-index: 1;
+}
+
+/* -------------------------------------------------------------- Postflop */
+
+.playing-card--small {
+  width: 46px;
+  height: 64px;
+}
+
+.playing-card--small .playing-card__rank {
+  font-size: 1.2rem;
+}
+
+.playing-card--small .playing-card__suit {
+  font-size: 0.95rem;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+
+.board__cards {
+  display: flex;
+  gap: 6px;
+}
+
+.board__pot {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.action-btn--X {
+  background: var(--check);
+}
+
+.action-btn--C {
+  background: var(--call);
+}
+
+.action-btn--B {
+  background: var(--raise);
+}
+
+.action-btn--R,
+.action-btn--AI {
+  background: var(--raise-strong);
+  color: #fff;
+}
+
+.action-btn--F {
+  background: var(--fold);
+}
+
+.cell--absent {
+  background: var(--card-2);
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.actions--wrap {
+  flex-wrap: wrap;
+}
+
+.actions--wrap .action-btn {
+  min-width: 120px;
 }

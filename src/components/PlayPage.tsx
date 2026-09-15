@@ -8,7 +8,8 @@ import type { TrainerSetup } from '@/lib/preflopGuess'
 import { loadRangeSet, rangeSetFor, rangeSetLabel } from '@/lib/rangeSets'
 import { loadTheme } from '@/lib/theme'
 import { fromSearchParams, normalize, toSetupSearchParams, DEFAULT_STATE } from '@/lib/viewerState'
-import { PreflopTrainer } from './PreflopTrainer'
+import { isPosition, positionsFor } from '@/lib/positions'
+import { HandTrainer } from './HandTrainer'
 import { Segmented } from './Segmented'
 import { TopNav } from './TopNav'
 import { TrainerSetupPanel } from './TrainerSetupPanel'
@@ -18,9 +19,10 @@ interface LoadedSet {
   entries: RangeEntry[]
 }
 
-function pickSetup(params: URLSearchParams): TrainerSetup {
+function pickSetup(params: URLSearchParams, seat?: string | null): TrainerSetup {
   const { format, stack, rangeType, openSize, players } = fromSearchParams(params)
-  return { format, stack, rangeType, openSize, players }
+  const wanted = seat ?? params.get('seat')
+  return { format, stack, rangeType, openSize, players, seat: isPosition(wanted) && positionsFor(players).includes(wanted) ? wanted : undefined }
 }
 
 export function PlayPage() {
@@ -37,7 +39,11 @@ export function PlayPage() {
     document.documentElement.dataset.theme = loadTheme()
   }, [])
 
-  const setupParams = useMemo(() => toSetupSearchParams(setup), [setup])
+  const setupParams = useMemo(() => {
+    const params = toSetupSearchParams(setup)
+    if (setup.seat) params.set('seat', setup.seat)
+    return params
+  }, [setup])
 
   useEffect(() => {
     const params = new URLSearchParams(setupParams)
@@ -66,7 +72,10 @@ export function PlayPage() {
   }, [setId])
 
   function updateSetup(patch: Partial<TrainerSetup>) {
-    setSetup((prev) => pickSetup(toSetupSearchParams(normalize({ ...DEFAULT_STATE, ...prev, ...patch }))))
+    setSetup((prev) => {
+      const merged = { ...prev, ...patch }
+      return pickSetup(toSetupSearchParams(normalize({ ...DEFAULT_STATE, ...merged })), merged.seat ?? '')
+    })
   }
 
   const entries = loaded && loaded.id === setId ? loaded.entries : null
@@ -95,7 +104,7 @@ export function PlayPage() {
           <div className="empty">Could not load the built-in charts. {loadError}</div>
         </section>
       ) : entries ? (
-        <PreflopTrainer key={setId} entries={entries} setup={setup} />
+        <HandTrainer key={setId} entries={entries} setup={setup} />
       ) : (
         <section className="card">
           <div className="empty">Loading charts…</div>
