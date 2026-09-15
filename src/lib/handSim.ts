@@ -16,6 +16,8 @@ export interface Seat {
   committed: number
   /** Short description of the seat's last action, for the table diagram. */
   lastAction?: string
+  /** Chart the seat played its last action from, so the range can be inspected. */
+  lastDecision?: Decision
 }
 
 export interface HandEnd {
@@ -150,7 +152,7 @@ export function sampleAction(decision: Decision, rng: Rng = Math.random): Action
 /** Apply the acting player's move and pass the turn on. */
 export function act(state: HandState, setup: TrainerSetup, action: Action, decision: Decision | null): HandState {
   if (state.toAct === null) return state
-  const seat = state.seats[state.toAct]
+  const seat: Seat = { ...state.seats[state.toAct], lastDecision: decision ?? undefined }
   const seats = [...state.seats]
   let next: HandState = { ...state, seats }
 

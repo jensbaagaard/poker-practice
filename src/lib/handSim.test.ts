@@ -36,6 +36,15 @@ describe('startHand', () => {
 })
 
 describe('action flow', () => {
+  it('remembers the chart each seat played its last action from', () => {
+    let hand = play(startHand(CASH, noRandom, 'LJ'), CASH, ['raise', 'fold'])
+    const seat = (p: string) => hand.seats.find((s) => s.position === p)!
+    expect(seat('LJ').lastDecision).toMatchObject({ scenario: 'open', position: 'LJ' })
+    expect(seat('HJ').lastDecision).toMatchObject({ scenario: 'vs-raise', villain: 'LJ' })
+    expect(seat('CO').lastDecision).toBeUndefined()
+    hand = play(hand, CASH, ['fold', 'raise', 'fold', 'fold', 'raise'])
+    expect(seat('LJ').lastDecision).toMatchObject({ scenario: 'vs-3bet', villain: 'BTN' })
+  })
   it('ends with a walk when everyone folds to the big blind', () => {
     const hand = play(startHand(CASH, noRandom, 'BB'), CASH, ['fold', 'fold', 'fold', 'fold', 'fold'])
     expect(hand.ended?.kind).toBe('walk')

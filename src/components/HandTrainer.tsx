@@ -38,6 +38,7 @@ export function HandTrainer({ entries, setup }: Props) {
   const [phase, setPhase] = useState<Phase>('npc')
   const [verdict, setVerdict] = useState<PreflopVerdict | null>(null)
   const [decisionsThisHand, setDecisionsThisHand] = useState(0)
+  const [inspected, setInspected] = useState<Position | null>(null)
   const [score, setScore] = useState(EMPTY_SCORE)
 
   const decision = useMemo(() => (phase === 'hero' ? decisionFor(hand, setup, entries) : null), [phase, hand, setup, entries])
@@ -49,14 +50,16 @@ export function HandTrainer({ entries, setup }: Props) {
     setPhase('npc')
     setVerdict(null)
     setDecisionsThisHand(0)
+    setInspected(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [setup])
 
-  // Drive opponents, hand the turn to the player, and deal again after hands with no decision.
+  // Drive opponents, hand the turn to the player, and deal again after hands with no decision
+  // unless the player is looking at an opponent's range.
   useEffect(() => {
     if (phase !== 'npc') return
     if (hand.ended) {
-      if (decisionsThisHand > 0) return
+      if (decisionsThisHand > 0 || inspected) return
       const timer = setTimeout(newHand, AUTO_NEXT_MS)
       return () => clearTimeout(timer)
     }
@@ -72,7 +75,7 @@ export function HandTrainer({ entries, setup }: Props) {
       setHand((prev) => act(prev, setup, current ? sampleAction(current) : 'fold', current))
     }, NPC_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [phase, hand, setup, entries, decisionsThisHand, newHand])
+  }, [phase, hand, setup, entries, decisionsThisHand, inspected, newHand])
 
   const answer = useCallback(
     (index: number) => {
@@ -112,6 +115,11 @@ export function HandTrainer({ entries, setup }: Props) {
     return out
   }, [hand])
 
+  const inspectable = useMemo(() => new Set(hand.seats.filter((s) => s.lastDecision && s.position !== hand.hero).map((s) => s.position)), [hand])
+  const inspectedSeat = inspected ? hand.seats.find((s) => s.position === inspected && s.lastDecision) : undefined
+  const inspectedWeights = useMemo(() => (inspectedSeat?.lastDecision ? resolveActions(inspectedSeat.lastDecision.entry.range) : null), [inspectedSeat?.lastDecision])
+  const toggleInspected = useCallback((position: Position) => setInspected((prev) => (prev === position ? null : position)), [])
+
   const shown = prompt ?? verdict?.prompt ?? null
   const shownDecision = decision ?? verdict?.decision ?? null
   const handOver = hand.ended ? `${hand.ended.message}${forcedFold ? ` ${COLD_3BET_NOTE}` : ''}` : null
@@ -145,7 +153,18 @@ export function HandTrainer({ entries, setup }: Props) {
           </span>
         </div>
 
-        <TableDiagram players={setup.players} hero={hand.hero} villain={shownDecision?.villain} bets={bets} acting={acting?.position} folded={folded} labels={labels} />
+        <TableDiagram
+          players={setup.players}
+          hero={hand.hero}
+          villain={shownDecision?.villain}
+          bets={bets}
+          acting={acting?.position}
+          folded={folded}
+          labels={labels}
+          clickable={inspectable}
+          selected={inspectedSeat?.position}
+          onSeatClick={toggleInspected}
+        />
         <HoleCards cards={hero.cards} />
 
         {prompt ? (
@@ -155,7 +174,7 @@ export function HandTrainer({ entries, setup }: Props) {
         ) : handOver ? (
           <div className="verdict" aria-live="polite">
             <strong>{handOver}</strong>
-            {decisionsThisHand > 0 ? (
+            {decisionsThisHand > 0 || inspected ? (
               <button type="button" className="btn btn--primary verdict__next" onClick={newHand} autoFocus>
                 Next hand
               </button>
@@ -169,6 +188,24 @@ export function HandTrainer({ entries, setup }: Props) {
           </div>
         )}
       </section>
+
+      {inspectedSeat?.lastDecision && inspectedWeights && (
+        <section className="card">
+          <div className="range-card__head">
+            <div className="range-card__title">
+              <h2>{POSITION_LABELS[inspectedSeat.position]} range</h2>
+              <span>
+                {headline(inspectedSeat.lastDecision.scenario, setup, inspectedSeat.position, inspectedSeat.lastDecision.villain).title}
+                {inspectedSeat.lastAction ? ` · played ${inspectedSeat.lastAction}` : ''}
+              </span>
+            </div>
+            <button type="button" className="btn" onClick={() => setInspected(null)}>
+              Close
+            </button>
+          </div>
+          <RangeGrid weights={inspectedWeights} highlight={hand.ended && !['hero-folded', 'walk'].includes(hand.ended.kind) && !inspectedSeat.folded ? inspectedSeat.hand.label : undefined} />
+        </section>
+      )}
 
       {verdict && chartWeights && (
         <section className="card">

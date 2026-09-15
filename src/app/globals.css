@@ -557,6 +557,16 @@ button {
   animation: seat-pulse 1s ease-in-out infinite;
 }
 
+.seat--clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.seat--clickable:hover circle,
+.seat--clickable:focus-visible circle {
+  filter: brightness(1.35);
+}
+
 @keyframes seat-pulse {
   0%,
   100% {

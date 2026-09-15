@@ -13,6 +13,11 @@ interface Props {
   labels?: Partial<Record<Position, string>>
   /** Pot size shown in the middle of the table. */
   pot?: number
+  /** Seats that can be clicked to inspect them. */
+  clickable?: ReadonlySet<Position>
+  /** Seat currently being inspected, drawn with a dashed ring. */
+  selected?: Position
+  onSeatClick?: (position: Position) => void
 }
 
 const W = 480
@@ -32,7 +37,7 @@ function formatBet(amount: number): string {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(/\.0$/, '')
 }
 
-export function TableDiagram({ players, hero, villain, bets, acting, folded, labels, pot }: Props) {
+export function TableDiagram({ players, hero, villain, bets, acting, folded, labels, pot, clickable, selected, onSeatClick }: Props) {
   const order = positionsFor(players)
   const heroIdx = order.indexOf(hero)
   const seats = order.map((position, i) => {
@@ -54,6 +59,8 @@ export function TableDiagram({ players, hero, villain, bets, acting, folded, lab
           const isHero = position === hero
           const isVillain = position === villain
           const isFolded = folded?.has(position) ?? false
+          const isClickable = (clickable?.has(position) ?? false) && !!onSeatClick
+          const isSelected = position === selected
           const label = labels?.[position]
           const bet = bets[position]
           const labelBelow = Math.sin(angle) >= 0
@@ -62,8 +69,28 @@ export function TableDiagram({ players, hero, villain, bets, acting, folded, lab
           const dx = CX + RX * 0.86 * Math.cos(angle - 0.55)
           const dy = CY + RY * 0.84 * Math.sin(angle - 0.55)
           return (
-            <g key={position} opacity={isFolded ? 0.35 : 1}>
+            <g
+              key={position}
+              opacity={isFolded && !isSelected ? 0.35 : 1}
+              className={isClickable ? 'seat seat--clickable' : 'seat'}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              aria-label={isClickable ? `Show ${POSITION_LABELS[position]} range` : undefined}
+              aria-pressed={isClickable ? isSelected : undefined}
+              onClick={isClickable ? () => onSeatClick(position) : undefined}
+              onKeyDown={
+                isClickable
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSeatClick(position)
+                      }
+                    }
+                  : undefined
+              }
+            >
               {position === acting && <circle cx={x} cy={y} r={22} fill="none" stroke="var(--accent)" strokeWidth={2} className="seat-pulse" />}
+              {isSelected && <circle cx={x} cy={y} r={22} fill="none" stroke="var(--text)" strokeWidth={1.5} strokeDasharray="3 3" />}
               <circle
                 cx={x}
                 cy={y}
