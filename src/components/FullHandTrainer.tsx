@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RangeEntry } from '@/data/types'
 import {
   actionLabel,
@@ -9,10 +9,12 @@ import {
   currentNode,
   currentStreet,
   dealForScript,
+  foldHandFor,
   loadHandScript,
   mapHole,
   pickHand,
   positionOf,
+  PREFLOP_FOLD_MESSAGE,
   randomSuitMap,
   resultMessage,
   scriptedPreflopAction,
@@ -46,6 +48,8 @@ interface Props {
 }
 
 const NPC_DELAY_MS = 1000
+/** Share of hands where the player is dealt a hand the chart folds preflop instead of the script's cards. */
+const FOLD_HAND_RATE = 0.3
 const FLOP_KEYS: Record<ActionKind, string> = { X: 'x', B: 'b', R: 'r', AI: 'a', C: 'c', F: 'f' }
 
 /** loading: fetching a script · npc: opponents act · hero: waiting for the player · verdict: feedback shown */
@@ -63,12 +67,16 @@ interface HandVerdict extends Verdict {
   prompt: HandPrompt
 }
 
-/** A scripted hand in progress. `play` is null until the preflop is over. */
+/**
+ * A scripted hand in progress. `play` is null until the preflop is over. In a `foldHand` the player
+ * holds a chart-fold hand instead of the script's cards, so the hand ends at their first decision.
+ */
 interface Live {
   script: HandScript
   suitMap: SuitMap
   hand: HandState
   play: PostflopPlay | null
+  foldHand: boolean
 }
 
 /** Pre-generated hands played from the first preflop decision to the end; wrong moves are corrected and the line continues. */
@@ -78,8 +86,11 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<HandVerdict | null>(null)
   const [score, setScore] = useState(EMPTY_SCORE)
+  /** Bumped on every deal so a load that is superseded (strict-mode double effects, setup changes) is dropped. */
+  const dealId = useRef(0)
 
   const newHand = useCallback(() => {
+    const id = ++dealId.current
     const entry = pickHand(index, setup.seat)
     setVerdict(null)
     setLive(null)
@@ -92,13 +103,16 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
     setPhase('loading')
     loadHandScript(entry.id)
       .then((script) => {
+        if (dealId.current !== id) return
         const suitMap = randomSuitMap()
-        const dealt = dealForScript(script, suitMap, setup, entries)
-        setLive({ script, suitMap, hand: startHand(setup, Math.random, script.hero, dealt), play: null })
+        const foldCards = Math.random() < FOLD_HAND_RATE ? foldHandFor(script, suitMap, setup, entries) : null
+        const dealt = dealForScript(script, suitMap, setup, entries, Math.random, foldCards ?? undefined)
+        setLive({ script, suitMap, hand: startHand(setup, Math.random, script.hero, dealt), play: null, foldHand: foldCards !== null })
         setPhase('npc')
         window.scrollTo({ top: 0, behavior: 'smooth' })
       })
       .catch((err: Error) => {
+        if (dealId.current !== id) return
         setError(`Could not load the hand. ${err.message}`)
         setPhase('npc')
       })
@@ -109,6 +123,7 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
   }, [newHand])
 
   const handOver = !!live && (live.play?.done || (!!live.hand.ended && live.hand.ended.kind !== 'flop'))
+  const foldedPreflop = live?.hand.ended?.kind === 'hero-folded'
 
   // Drive the scripted line: opponents act after a pause, the player is prompted at their nodes.
   useEffect(() => {
@@ -161,7 +176,9 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
       }
     }
     const decision = decisionFor(hand, setup, entries)
-    return decision ? { ...preflopPrompt(decision, setup, scriptedPreflopAction(hand, script)), street: 'preflop', decision } : null
+    if (!decision) return null
+    const expected = live.foldHand ? undefined : scriptedPreflopAction(hand, script)
+    return { ...preflopPrompt(decision, setup, expected), street: 'preflop', decision }
   }, [phase, live, setup, entries])
 
   const answer = useCallback(
@@ -232,7 +249,7 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
   }, [live])
 
   const shown = prompt ?? verdict?.prompt ?? null
-  const handOverMessage = live && handOver ? resultMessage(live.script) : null
+  const handOverMessage = live && handOver ? (foldedPreflop ? PREFLOP_FOLD_MESSAGE : resultMessage(live.script)) : null
   const chartWeights = useMemo(() => (verdict?.prompt.decision ? resolveActions(verdict.prompt.decision.entry.range) : null), [verdict])
 
   let title = 'Dealing…'
@@ -282,7 +299,7 @@ export function FullHandTrainer({ entries, setup, index }: Props) {
               pot={live.play ? (live.play.done ? live.script.result.pot : currentStreet(live.script, live.play)!.pot) : undefined}
             />
             {live.play && <BoardCards cards={boardShown(live.script, live.play, live.suitMap)} />}
-            {handOver && live.script.result.kind === 'showdown' && (
+            {handOver && !foldedPreflop && live.script.result.kind === 'showdown' && (
               <div className="showdown">
                 <span className="showdown__label">Villain</span>
                 <div className="hole-cards hole-cards--small">

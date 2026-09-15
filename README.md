@@ -24,8 +24,9 @@ live in the URL so any view can be shared as a link.
   - **Full hands**: play a hand from the first preflop decision to the river. Hands
     are pre-generated: opponents follow the preflop charts and a solver line, and
     whenever the action reaches you, you pick a move. A wrong move is graded, the
-    right one is shown, and the hand continues along the solver's line. Single-raised
-    and 3-bet pots, cash 100bb PTO, 6-max. Keys `R`, `C`, `F` preflop and `X`, `B`,
+    right one is shown, and the hand continues along the solver's line. About a third
+    of the time you are dealt a hand the chart folds preflop instead, and the hand ends
+    when you fold it. Single-raised and 3-bet pots, cash 100bb PTO, 6-max. Keys `R`, `C`, `F` preflop and `X`, `B`,
     `R`, `A`, `C`, `F` postflop; `Enter` continues.
   - **Preflop**: every seat is dealt cards, opponents act in turn (one second each)
     from the selected charts, and you choose raise, call or fold whenever the action

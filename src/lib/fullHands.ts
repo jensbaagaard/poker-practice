@@ -167,10 +167,11 @@ function chartWeights(setup: TrainerSetup, entries: RangeEntry[], scenario: Scen
 /**
  * Deal every seat so the preflop charts lead to the script's line: the two players get the
  * script's cards and everyone else gets a hand their chart folds in the spot they face.
+ * `heroCards` replaces the script's hero hand, see `foldHandFor`.
  */
-export function dealForScript(script: HandScript, suitMap: SuitMap, setup: TrainerSetup, entries: RangeEntry[], rng: Rng = Math.random): HoleCards[] {
+export function dealForScript(script: HandScript, suitMap: SuitMap, setup: TrainerSetup, entries: RangeEntry[], rng: Rng = Math.random, heroCards?: HoleCards): HoleCards[] {
   const order = positionsFor(setup.players)
-  const hero = mapHole(script.heroCards, suitMap)
+  const hero = heroCards ?? mapHole(script.heroCards, suitMap)
   const villain = mapHole(script.villainCards, suitMap)
   const used = new Set([...hero, ...villain].map((c) => c.rank + c.suit))
   const deck = DECK.filter((c) => !used.has(c.rank + c.suit))
@@ -204,6 +205,29 @@ export function dealForScript(script: HandScript, suitMap: SuitMap, setup: Train
     deck.splice(0, 2)
     return cards
   })
+}
+
+/**
+ * Hero cards the chart folds at the hero's first decision in the script's spot: opening when the
+ * hero is the opener, otherwise facing the open. Cards the villain holds are never drawn. Null when
+ * no chart covers the spot or no folding hand turned up.
+ */
+export function foldHandFor(script: HandScript, suitMap: SuitMap, setup: TrainerSetup, entries: RangeEntry[], rng: Rng = Math.random): HoleCards | null {
+  const villain = mapHole(script.villainCards, suitMap)
+  const used = new Set(villain.map((c) => c.rank + c.suit))
+  const deck = DECK.filter((c) => !used.has(c.rank + c.suit))
+  const opens = script.hero === script.opener
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const i = Math.floor(rng() * deck.length)
+    let j = Math.floor(rng() * (deck.length - 1))
+    if (j >= i) j += 1
+    const cards: HoleCards = [deck[i], deck[j]]
+    const label = handOf(cards).label
+    const weights = opens ? chartWeights(setup, entries, 'open', script.hero, undefined, label) : chartWeights(setup, entries, 'vs-raise', script.hero, script.opener, label)
+    if (weights === null) return null
+    if (weights.fold > 0.5) return cards
+  }
+  return null
 }
 
 // ------------------------------------------------------------- Postflop line
@@ -288,6 +312,8 @@ export function shortActionLabel(action: ScriptAction): string {
 }
 
 export const STREET_LABELS: Record<Street, string> = { flop: 'Flop', turn: 'Turn', river: 'River' }
+
+export const PREFLOP_FOLD_MESSAGE = 'You fold preflop and sit this one out.'
 
 export function resultMessage(script: HandScript): string {
   const { result } = script

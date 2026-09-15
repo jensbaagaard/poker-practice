@@ -10,7 +10,7 @@ export const GAME_MODE_INFO: Record<GameMode, GameModeInfo> = {
   'full-hands': {
     label: 'Full hands',
     description:
-      'Play a hand from the first preflop decision to the river against opponents who follow the charts and solver. A wrong move is corrected and the hand continues along the right line.',
+      'Play a hand from the first preflop decision to the river against opponents who follow the charts and solver. A wrong move is corrected and the hand continues along the right line. Some hands should be folded preflop.',
   },
   preflop: {
     label: 'Preflop',

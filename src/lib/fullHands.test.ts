@@ -8,6 +8,7 @@ import {
   boardShown,
   currentNode,
   dealForScript,
+  foldHandFor,
   pickHand,
   resultMessage,
   scriptedPreflopAction,
@@ -88,6 +89,38 @@ describe('scripted preflop', () => {
     }
     expect(actions).toEqual(['LJ:fold', 'HJ:fold', 'CO:fold', 'BTN:raise', 'SB:fold', 'BB:raise', 'BTN:call'])
     expect(hand.raises).toBe(2)
+  })
+})
+
+describe('preflop fold hands', () => {
+  const FOLDS = ['AA', 'KK', 'QQ', 'AKs']
+  it('deals the caller a hand the chart folds facing the open, avoiding the villain cards', () => {
+    const cards = foldHandFor(SRP, IDENTITY, CASH, ENTRIES, () => 0.11)
+    expect(cards).not.toBeNull()
+    expect(['AA', 'KK', 'QQ']).not.toContain(handOf(cards!).label)
+    expect(cards!.map((c) => c.rank + c.suit)).not.toContain('Ad')
+    expect(cards!.map((c) => c.rank + c.suit)).not.toContain('Kh')
+  })
+  it('deals the opener a hand the chart does not open', () => {
+    const asOpener: HandScript = { ...SRP, hero: 'BTN', villain: 'BB', heroPlayer: 'ip' }
+    const cards = foldHandFor(asOpener, IDENTITY, CASH, ENTRIES)
+    expect(cards).not.toBeNull()
+    expect(FOLDS).not.toContain(handOf(cards!).label)
+  })
+  it('gives up when no chart covers the spot', () => {
+    expect(foldHandFor(SRP, IDENTITY, CASH, [])).toBeNull()
+  })
+  it('ends the hand at the first decision when the player folds a dealt fold hand', () => {
+    const fold = foldHandFor(SRP, IDENTITY, CASH, ENTRIES)!
+    const cards = dealForScript(SRP, IDENTITY, CASH, ENTRIES, Math.random, fold)
+    expect(cards[5]).toEqual(fold)
+    expect(new Set(cards.flat().map((c) => c.rank + c.suit)).size).toBe(12)
+    let hand = startHand(CASH, () => 0, 'BB', cards)
+    while (!hand.ended && hand.seats[hand.toAct!].position !== 'BB') hand = act(hand, CASH, scriptedPreflopAction(hand, SRP), decisionFor(hand, CASH, ENTRIES))
+    const decision = decisionFor(hand, CASH, ENTRIES)!
+    expect(decision.weights.fold).toBe(1)
+    hand = act(hand, CASH, 'fold', decision)
+    expect(hand.ended?.kind).toBe('hero-folded')
   })
 })
 
