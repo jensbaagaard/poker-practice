@@ -1,7 +1,9 @@
 # Open Range Viewer
 
+**Live site: <https://poker-practice-gules.vercel.app>**
+
 An open-source preflop range viewer for No-Limit Hold'em, built with Next.js and
-ready to deploy on Vercel.
+deployed on Vercel.
 
 Pick a scenario (open, vs raise, vs 3-bet, vs 4-bet, vs 5-bet), a hero seat and a
 villain seat, and the 13×13 grid shows which hands raise, call or fold. Settings
@@ -39,7 +41,8 @@ npm test            # or: npm run check (typecheck + tests)
 npm run build          # runs build:ranges first when the data folder is present
 ```
 
-Deploy by importing the repository on Vercel. No configuration is needed: the
+The site is deployed on Vercel from the `main` branch of this repository; every
+push to `main` triggers a production deploy. No configuration is needed: the
 build regenerates `public/ranges/` from `data/openSourcePokerData/` and serves
 the files as static assets.
 
