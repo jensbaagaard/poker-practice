@@ -1,25 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { dealHoleCards, DECK, handOf } from './cards'
+import { dealTable, DECK, handOf } from './cards'
 
 function rngOf(...values: number[]) {
   let i = 0
   return () => values[i++ % values.length]
 }
 
-describe('dealHoleCards', () => {
+describe('dealTable', () => {
   it('has 52 distinct cards to deal from', () => {
     expect(new Set(DECK.map((c) => c.rank + c.suit)).size).toBe(52)
   })
-  it('never deals the same card twice', () => {
-    for (let i = 0; i < 500; i++) {
-      const [a, b] = dealHoleCards()
-      expect(a.rank + a.suit).not.toBe(b.rank + b.suit)
-    }
+  it('deals distinct cards to every seat, higher rank first', () => {
+    const hands = dealTable(9)
+    expect(new Set(hands.flat().map((c) => c.rank + c.suit)).size).toBe(18)
+    for (const [a, b] of hands) expect(DECK.findIndex((c) => c.rank === a.rank)).toBeLessThanOrEqual(DECK.findIndex((c) => c.rank === b.rank))
   })
-  it('puts the higher rank first', () => {
-    const [a, b] = dealHoleCards(rngOf(51 / 52, 0))
-    expect(a.rank).toBe('A')
-    expect(b.rank).toBe('2')
+  it('is reproducible with a seeded generator', () => {
+    const rng = rngOf(0.1, 0.7, 0.3, 0.9, 0.5)
+    expect(dealTable(2, rng)).toEqual(dealTable(2, rngOf(0.1, 0.7, 0.3, 0.9, 0.5)))
   })
 })
 

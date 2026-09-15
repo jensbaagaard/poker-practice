@@ -1,7 +1,7 @@
 import type { RangeEntry } from '@/data/types'
 import { parseRangeEntries } from './rangeEntries'
 
-export const USER_RANGES_KEY = 'open-range-viewer:user-ranges'
+const USER_RANGES_KEY = 'open-range-viewer:user-ranges'
 
 export function loadUserRangesText(): string {
   try {

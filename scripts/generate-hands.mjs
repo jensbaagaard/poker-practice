@@ -12,8 +12,7 @@
  *
  *   TEXASSOLVER_BIN=/path/to/console_solver node scripts/generate-hands.mjs [--per-board 6] [--spots a,b] [--kind srp|3bp] [--seed 1]
  */
-import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,30 +20,20 @@ import { DECK, lookup, seededRng, shuffle, weightedPick } from './lib/cards.mjs'
 import { aggregateGrid } from './lib/aggregate.mjs'
 import { evaluateHand } from './lib/handEval.mjs'
 import { expandRange, rangeString } from './lib/ranges.mjs'
+import { argReader, betSizeLines, compactAction, compactStrategy, runSolver, SCALE, solverBinary } from './lib/solver.mjs'
 import { POSTFLOP_SPOTS, TREE } from './postflop-spots.mjs'
 
-const SCALE = 10
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const flopsRoot = path.join(root, 'data', 'postflop', 'flops')
 const outRoot = path.join(root, 'public', 'full-hands')
 const workDir = path.join(os.tmpdir(), 'open-range-viewer-hands')
-const bin = process.env.TEXASSOLVER_BIN
-if (!bin || !existsSync(bin)) {
-  console.error('Set TEXASSOLVER_BIN to the TexasSolver console_solver binary.')
-  process.exit(1)
-}
+const bin = solverBinary()
 
-const args = process.argv.slice(2)
-const opt = (name, fallback) => {
-  const i = args.indexOf(`--${name}`)
-  return i >= 0 ? args[i + 1] : fallback
-}
+const opt = argReader(process.argv.slice(2))
 const perBoard = Number(opt('per-board', 6))
-const spotFilter = opt('spots', '')?.split(',').filter(Boolean)
+const spotFilter = opt('spots', '').split(',').filter(Boolean)
 const kindFilter = opt('kind', '')
 const seed = Number(opt('seed', 1))
-const threads = Math.min(12, Math.max(2, os.cpus().length - 2))
-mkdirSync(workDir, { recursive: true })
 
 const other = (p) => (p === 'ip' ? 'oop' : 'ip')
 const argmax = (probs) => probs.reduce((best, p, i) => (p > probs[best] ? i : best), 0)
@@ -61,34 +50,13 @@ const round1 = (n) => Math.round(n * 10) / 10
 
 // ------------------------------------------------------------ Raw solver nodes
 
-/** Convert a raw TexasSolver action label to the compact form used by the flop files. */
-function compactAction(label, stack) {
-  const [kind, amountText] = label.split(' ')
-  const amount = amountText === undefined ? undefined : Number(amountText) / SCALE
-  switch (kind) {
-    case 'CHECK':
-      return { a: 'X' }
-    case 'CALL':
-      return { a: 'C' }
-    case 'FOLD':
-      return { a: 'F' }
-    case 'BET':
-    case 'RAISE':
-      return amount >= stack * 0.99 ? { a: 'AI', bb: stack } : { a: kind === 'BET' ? 'B' : 'R', bb: amount }
-    default:
-      throw new Error(`Unknown action ${label}`)
-  }
-}
-
 /** View a raw dump node as a compact node whose children are resolved on demand. */
 function viewRaw(raw, stack) {
   if (!raw || raw.node_type !== 'action_node') return null
-  const strategy = {}
-  for (const [combo, probs] of Object.entries(raw.strategy.strategy)) strategy[combo] = probs.map((p) => Math.round(p * 100))
   return {
     p: raw.player === 0 ? 'ip' : 'oop',
     actions: raw.actions.map((label) => compactAction(label, stack)),
-    s: strategy,
+    s: compactStrategy(raw),
     child: (i) => {
       const child = raw.childrens?.[raw.actions[i]]
       if (!child) return { kind: 'end' }
@@ -173,28 +141,15 @@ function reachRange(baseRange, decisions) {
 
 // -------------------------------------------------------------- Turn solve
 
-function sizes(who, street, kind, values) {
-  return values && values.length ? `set_bet_sizes ${who},${street},${kind},${values.join(',')}\n` : ''
-}
-
 function solveTurn(board, pot, stack, ipRange, oopRange, tag) {
-  const resultPath = path.join(workDir, `${tag}.json`)
-  const inputPath = path.join(workDir, `${tag}.txt`)
-  let text = `set_pot ${Math.round(pot * SCALE)}\nset_effective_stack ${Math.round(stack * SCALE)}\nset_board ${board.join(',')}\n`
-  text += `set_range_ip ${rangeString(ipRange)}\nset_range_oop ${rangeString(oopRange)}\n`
-  for (const street of ['turn', 'river']) {
-    for (const who of ['oop', 'ip']) {
-      text += sizes(who, street, 'bet', TREE[street].bet) + sizes(who, street, 'raise', TREE[street].raise) + `set_bet_sizes ${who},${street},allin\n`
-    }
-  }
-  text += `set_allin_threshold ${TREE.allinThreshold}\nbuild_tree\nset_thread_num ${threads}\nset_accuracy 0.2\nset_max_iteration 200\nset_print_interval 10\nset_use_isomorphism 0\nstart_solve\nset_dump_rounds 2\ndump_result ${resultPath}\n`
-  writeFileSync(inputPath, text)
-  const log = execFileSync(bin, ['-i', inputPath], { cwd: path.dirname(bin), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  const exploit = Number([...log.matchAll(/Total exploitability ([\d.]+)/g)].pop()?.[1])
-  const raw = JSON.parse(readFileSync(resultPath, 'utf8'))
-  rmSync(resultPath, { force: true })
-  rmSync(inputPath, { force: true })
-  return { root: viewRaw(raw, stack), exploit }
+  const body =
+    `set_pot ${Math.round(pot * SCALE)}\nset_effective_stack ${Math.round(stack * SCALE)}\nset_board ${board.join(',')}\n` +
+    `set_range_ip ${rangeString(ipRange)}\nset_range_oop ${rangeString(oopRange)}\n` +
+    betSizeLines(TREE, ['turn', 'river']) +
+    `set_allin_threshold ${TREE.allinThreshold}\n`
+  // Exact-combo ranges are not suit-symmetric, so isomorphism stays off.
+  const { raw, exploitability } = runSolver(bin, tag, body, { iterations: 200, accuracy: 0.2, dumpRounds: 2, isomorphism: 0, workDir })
+  return { root: viewRaw(raw, stack), exploit: exploitability }
 }
 
 // ------------------------------------------------------------- One script

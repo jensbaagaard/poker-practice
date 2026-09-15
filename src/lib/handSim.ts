@@ -5,7 +5,7 @@ import { POSITION_LABELS, positionsFor, type Position } from './positions'
 import { resolveActions, type Action, type ActionWeights } from './range'
 import { resolveRange } from './resolve'
 import { heroRaise, type Scenario } from './scenarios'
-import type { TrainerSetup } from './preflopGuess'
+import type { TrainerSetup } from './trainer'
 
 export interface Seat {
   position: Position
@@ -65,7 +65,7 @@ export function startHand(setup: TrainerSetup, rng: Rng = Math.random, hero?: Po
   return advance({ seats, hero: heroPosition, toAct: -1, raises: 0, acted: [], ended: null }, setup)
 }
 
-export function currentBet(state: HandState): number {
+function currentBet(state: HandState): number {
   return Math.max(...state.seats.map((s) => s.committed))
 }
 

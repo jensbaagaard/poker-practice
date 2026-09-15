@@ -3,7 +3,7 @@ import { DECK, handOf, SUITS, type Card, type HoleCards, type Rng, type Suit } f
 import type { HandState } from './handSim'
 import type { Rank } from './hands'
 import { positionsFor, type Position } from './positions'
-import type { TrainerSetup } from './preflopGuess'
+import type { TrainerSetup } from './trainer'
 import { resolveActions, type Action, type ActionWeights } from './range'
 import { resolveRange } from './resolve'
 import type { Scenario } from './scenarios'
@@ -112,7 +112,7 @@ export function pickHand(index: HandIndex, seat: Position | undefined, rng: Rng 
 /** Scripts use canonical suits (spades first, then hearts...). A random relabelling shows every suit. */
 export type SuitMap = Record<Suit, Suit>
 
-export function parseCard(text: string): Card {
+function parseCard(text: string): Card {
   return { rank: text[0] as Rank, suit: text[1] as Suit }
 }
 
@@ -125,7 +125,7 @@ export function randomSuitMap(rng: Rng = Math.random): SuitMap {
   return Object.fromEntries(SUITS.map((s, i) => [s, shuffled[i]])) as SuitMap
 }
 
-export function mapCard(text: string, map: SuitMap): Card {
+function mapCard(text: string, map: SuitMap): Card {
   const card = parseCard(text)
   return { rank: card.rank, suit: map[card.suit] }
 }
@@ -247,12 +247,6 @@ export function boardShown(script: HandScript, play: PostflopPlay | null, suitMa
   if (!play) return []
   const count = play.done ? script.board.length : Math.min(script.board.length, 3 + play.streetIndex)
   return script.board.slice(0, count).map((c) => mapCard(c, suitMap))
-}
-
-export function potNow(script: HandScript, play: PostflopPlay): number {
-  if (play.done) return script.result.pot
-  const street = script.streets[play.streetIndex]
-  return Math.round((street.pot + play.bets.ip + play.bets.oop) * 10) / 10
 }
 
 export function positionOf(script: HandScript, player: Player): Position {

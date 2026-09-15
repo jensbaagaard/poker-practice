@@ -675,28 +675,6 @@ kbd {
   color: var(--text);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--control);
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.chip--on {
-  background: var(--selected);
-  border-color: var(--accent);
-  color: var(--text);
-}
-
 .cell--highlight {
   outline: 3px solid var(--accent);
   outline-offset: -1px;
@@ -729,12 +707,6 @@ kbd {
 .board__cards {
   display: flex;
   gap: 6px;
-}
-
-.board__pot {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--muted);
 }
 
 .action-btn--X {

@@ -6,7 +6,7 @@ export const THEME_SWATCHES: Record<Theme, { raise: string; call: string }> = {
   cool: { raise: '#a6c8f7', call: '#f7f2a4' },
 }
 
-export const THEME_KEY = 'open-range-viewer:theme'
+const THEME_KEY = 'open-range-viewer:theme'
 
 export function loadTheme(): Theme {
   try {

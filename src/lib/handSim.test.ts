@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RangeEntry } from '@/data/types'
 import { act, decisionFor, sampleAction, seatToAct, startHand, type HandState } from './handSim'
-import type { TrainerSetup } from './preflopGuess'
+import type { TrainerSetup } from './trainer'
 
 const CASH: TrainerSetup = { format: 'cash', stack: 100, rangeType: 'pto', openSize: 2.5, players: 6 }
 const MTT_20: TrainerSetup = { ...CASH, format: 'mtt', stack: 20 }

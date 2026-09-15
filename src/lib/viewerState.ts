@@ -16,7 +16,7 @@ import {
   type Scenario,
 } from './scenarios'
 
-export const SOURCES = ['builtin', 'user'] as const
+const SOURCES = ['builtin', 'user'] as const
 export type Source = (typeof SOURCES)[number]
 
 export interface ViewerState extends GameSetup {

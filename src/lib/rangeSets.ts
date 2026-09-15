@@ -51,7 +51,7 @@ export function rangeSetLabel(set: RangeSet): string {
   return `${FORMAT_LABELS[set.format]} ${set.stack}bb ${RANGE_TYPE_LABELS[set.rangeType]}${open}`
 }
 
-export function rangeSetUrl(id: string): string {
+function rangeSetUrl(id: string): string {
   return `/ranges/${id}.json`
 }
 

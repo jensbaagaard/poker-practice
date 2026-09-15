@@ -19,7 +19,7 @@ export function HoleCards({ cards }: { cards: Cards }) {
   )
 }
 
-export function BoardCards({ cards, pot }: { cards: Card[]; pot?: number }) {
+export function BoardCards({ cards }: { cards: Card[] }) {
   return (
     <div className="board">
       <div className="board__cards" role="img" aria-label={`Board: ${cards.map(cardLabel).join(' ')}`}>
@@ -27,7 +27,6 @@ export function BoardCards({ cards, pot }: { cards: Card[]; pot?: number }) {
           <CardFace key={cardLabel(c)} card={c} small />
         ))}
       </div>
-      {pot !== undefined && <div className="board__pot">Pot {pot}bb</div>}
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { RangeEntry } from '@/data/types'
 import { DEFAULT_GAME_MODE, GAME_MODE_INFO, GAME_MODES, isGameMode, type GameMode } from '@/lib/gameModes'
-import type { TrainerSetup } from '@/lib/preflopGuess'
+import type { TrainerSetup } from '@/lib/trainer'
 import { loadRangeSet, rangeSetFor, rangeSetLabel } from '@/lib/rangeSets'
 import { loadTheme } from '@/lib/theme'
 import { fromSearchParams, normalize, toSetupSearchParams, DEFAULT_STATE } from '@/lib/viewerState'
@@ -23,10 +23,17 @@ interface LoadedSet {
 
 const FULL_HANDS_SETUP: TrainerSetup = { format: 'cash', stack: 100, rangeType: 'pto', openSize: 2.5, players: 6 }
 
-function pickSetup(params: URLSearchParams, seat?: string | null): TrainerSetup {
+/** Setup from URL parameters, reusing the viewer's parsing and normalisation of the chart-set fields. */
+function pickSetup(params: URLSearchParams): TrainerSetup {
   const { format, stack, rangeType, openSize, players } = fromSearchParams(params)
-  const wanted = seat ?? params.get('seat')
-  return { format, stack, rangeType, openSize, players, seat: isPosition(wanted) && positionsFor(players).includes(wanted) ? wanted : undefined }
+  const seat = params.get('seat')
+  return { format, stack, rangeType, openSize, players, seat: isPosition(seat) && positionsFor(players).includes(seat) ? seat : undefined }
+}
+
+function setupParamsOf(setup: TrainerSetup): URLSearchParams {
+  const params = toSetupSearchParams(setup)
+  if (setup.seat) params.set('seat', setup.seat)
+  return params
 }
 
 export function PlayPage() {
@@ -44,11 +51,7 @@ export function PlayPage() {
     document.documentElement.dataset.theme = loadTheme()
   }, [])
 
-  const setupParams = useMemo(() => {
-    const params = toSetupSearchParams(setup)
-    if (setup.seat) params.set('seat', setup.seat)
-    return params
-  }, [setup])
+  const setupParams = useMemo(() => setupParamsOf(setup), [setup])
 
   useEffect(() => {
     const params = new URLSearchParams(setupParams)
@@ -93,7 +96,7 @@ export function PlayPage() {
   function updateSetup(patch: Partial<TrainerSetup>) {
     setSetup((prev) => {
       const merged = { ...prev, ...patch }
-      return pickSetup(toSetupSearchParams(normalize({ ...DEFAULT_STATE, ...merged })), merged.seat ?? '')
+      return pickSetup(setupParamsOf({ ...normalize({ ...DEFAULT_STATE, ...merged }), seat: merged.seat }))
     })
   }
 

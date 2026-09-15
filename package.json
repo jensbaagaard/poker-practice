@@ -9,9 +9,11 @@
     "prebuild": "node scripts/build-ranges.mjs --if-present",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "tsc --noEmit && vitest run",
+    "build:hands": "node scripts/generate-hands.mjs",
+    "solve:flops": "node scripts/solve-postflop.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",

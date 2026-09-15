@@ -7,7 +7,7 @@ import {
   positionsFor,
   type Position,
 } from "@/lib/positions";
-import type { TrainerSetup } from "@/lib/preflopGuess";
+import type { TrainerSetup } from "@/lib/trainer";
 import {
   FORMAT_LABELS,
   FORMATS,

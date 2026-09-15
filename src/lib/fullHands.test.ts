@@ -9,13 +9,12 @@ import {
   currentNode,
   dealForScript,
   pickHand,
-  potNow,
   resultMessage,
   scriptedPreflopAction,
   startPostflop,
   type HandScript,
 } from './fullHands'
-import type { TrainerSetup } from './preflopGuess'
+import type { TrainerSetup } from './trainer'
 
 const CASH: TrainerSetup = { format: 'cash', stack: 100, rangeType: 'pto', openSize: 2.5, players: 6 }
 const ALL = ['LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as const
@@ -103,14 +102,13 @@ describe('postflop line', () => {
     expect(actionLabel(currentNode(SRP, play)!.actions[0], play.bets, 'oop')).toBe('Call 1.8bb')
     expect(actionLabel(currentNode(SRP, play)!.actions[1], play.bets, 'oop')).toBe('Raise to 6.4bb')
     play = advancePostflop(SRP, play)
-    expect(potNow(SRP, play)).toBe(13.7)
+    expect(play.bets).toEqual({ ip: 1.8, oop: 6.4 })
     play = advancePostflop(SRP, play)
     expect(play.streetIndex).toBe(1)
     expect(boardShown(SRP, play, IDENTITY)).toHaveLength(4)
     play = advancePostflop(SRP, play)
     play = advancePostflop(SRP, play)
     expect(play.done).toBe(true)
-    expect(potNow(SRP, play)).toBe(27.5)
   })
   it('describes the result', () => {
     expect(resultMessage(SRP)).toBe('Villain folds. You take the 27.5bb pot.')

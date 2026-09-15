@@ -17,14 +17,6 @@ export const DECK: readonly Card[] = RANKS.flatMap((rank) => SUITS.map((suit): C
 /** Random number in [0, 1). Injectable so games can be replayed in tests. */
 export type Rng = () => number
 
-/** Deal two distinct cards, higher rank first. */
-export function dealHoleCards(rng: Rng = Math.random): HoleCards {
-  const first = Math.floor(rng() * DECK.length)
-  let second = Math.floor(rng() * (DECK.length - 1))
-  if (second >= first) second += 1
-  return orderPair(DECK[first], DECK[second])
-}
-
 function orderPair(a: Card, b: Card): HoleCards {
   return RANKS.indexOf(a.rank) <= RANKS.indexOf(b.rank) ? [a, b] : [b, a]
 }

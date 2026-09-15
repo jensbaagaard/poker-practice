@@ -35,7 +35,7 @@ live in the URL so any view can be shared as a link.
 npm install
 npm run build:ranges   # generate public/ranges/*.json from data/openSourcePokerData
 npm run dev            # http://localhost:3000
-npm test
+npm test            # or: npm run check (typecheck + tests)
 npm run build          # runs build:ranges first when the data folder is present
 ```
 

@@ -1,4 +1,4 @@
-export const POSITIONS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as const
+const POSITIONS = ['UTG', 'UTG1', 'UTG2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as const
 export type Position = (typeof POSITIONS)[number]
 
 export const PLAYER_COUNTS = [6, 8, 9] as const

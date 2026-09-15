@@ -24,7 +24,7 @@ export const TREE = {
 }
 
 /** How many boards from the subset to solve per spot kind. */
-export const FLOPS_PER_KIND = { srp: 25, '3bp': 10 }
+const FLOPS_PER_KIND = { srp: 25, '3bp': 10 }
 
 function compactRange(text) {
   return text.replace(/\s+/g, '')
@@ -47,7 +47,7 @@ function inPosition(a, b) {
   return POSTFLOP_ORDER.indexOf(a) > POSTFLOP_ORDER.indexOf(b)
 }
 
-export function buildSpots() {
+function buildSpots() {
   const entries = JSON.parse(readFileSync(path.join(root, 'public', 'ranges', 'Cash_100_PTO.json'), 'utf8'))
   const openRange = (opener) => {
     const open = entries.find((e) => e.scenario === 'open' && e.hero.includes(opener) && (!e.players || e.players.includes(6)))

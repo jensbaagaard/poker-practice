@@ -16,7 +16,7 @@ export type Format = (typeof FORMATS)[number]
 
 export const FORMAT_LABELS: Record<Format, string> = { cash: 'Cash', mtt: 'MTT' }
 
-export const RANGE_TYPES = ['pto', 'simple', 'pro', 'gto'] as const
+const RANGE_TYPES = ['pto', 'simple', 'pro', 'gto'] as const
 export type RangeType = (typeof RANGE_TYPES)[number]
 
 export const RANGE_TYPE_LABELS: Record<RangeType, string> = {
@@ -45,7 +45,7 @@ export const RANGE_TYPE_DESCRIPTIONS: Record<RangeType, { lead: string; text: st
   },
 }
 
-export const STACKS = [100, 40, 20, 10, 5] as const
+const STACKS = [100, 40, 20, 10, 5] as const
 export type Stack = (typeof STACKS)[number]
 
 /** Raise-first-in size the cash GTO sets were solved for. Other sets use 2.5bb. */
@@ -118,7 +118,7 @@ interface RaiseRule {
   oopMax?: number
 }
 
-export interface SizingProfile {
+interface SizingProfile {
   openIp: number
   openSb: number
   threeBet: RaiseRule | 'all-in'
@@ -144,7 +144,7 @@ const MTT_SIZING: Record<Stack, SizingProfile> = {
   5: { openIp: 5, openSb: 5, threeBet: 'all-in', fourBet: 'all-in', ante: 1 },
 }
 
-export function sizingFor(setup: GameSetup): SizingProfile {
+function sizingFor(setup: GameSetup): SizingProfile {
   return setup.format === 'cash' ? cashSizing(effectiveOpenSize(setup)) : MTT_SIZING[setup.stack]
 }
 
